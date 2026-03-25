@@ -1,0 +1,99 @@
+import csv
+from html.parser import HTMLParser
+from itertools import count
+from tkinter import N
+from bs4 import BeautifulSoup
+from numpy import empty
+import requests
+import json
+from pymongo import MongoClient
+from bson.json_util import dumps
+
+# 46 to 48 ... job_hospitality.csv
+
+def write_output(data):
+	with open('job_hospitality.csv', mode='a',newline="", encoding="utf-8") as output_file:
+	# with open('job_real_estate.csv', mode='a',newline="", encoding="utf-8") as output_file:
+		writer = csv.writer(output_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL)
+		writer.writerow(["full_name","phone_numbers","mobile_phone","personal_email","professional_email","industry","job_company_name","job_company_website","job_company_location_name","job_company_location_street_address","job_company_industry","job_title","work_email","location_country","full_address","linkedin_url"])
+		# writer.writerow(["full_name","phone_numbers","mobile_phone","personal_email","professional_email","industry","job_company_name","job_title","work_email","location_country","full_address","linkedin_url"])
+		for row in data:
+			writer.writerow(row)
+            
+CONNECTION_STRING = "mongodb://localhost:27017"
+client = MongoClient(CONNECTION_STRING)
+dbname = client['admin']
+collection_name = dbname["48"]
+
+def fetch_data():
+    item_details = json.loads(dumps(list(collection_name.find({},{"full_name":1,"phone_numbers":1,"mobile_phone":1,"emails":1,"personal_email":1,"professional_email":1,"industry":1,"job_company_name":1,"job_company_website":1,"job_company_location_name":1,"job_company_location_street_address":1,"job_company_industry":1,"job_title":1,"work_email":1,"location_country":1,"full_address":1,"location_street_address":1,"location_locality":1,"location_region":1,"location_postal_code":1,"linkedin_url":1}))))
+    # item_details = json.loads(dumps(list(collection_name.find({},{"full_name":1,"phone_numbers":1,"mobile_phone":1,"emails":1,"personal_email":1,"professional_email":1,"industry":1,"job_company_name":1,"job_title":1,"work_email":1,"location_country":1,"full_address":1,"location_street_address":1,"location_locality":1,"location_region":1,"location_postal_code":1,"linkedin_url":1}))))
+    for item in item_details:
+        if item['location_country'] != None:
+            # if "united states" in item['location_country'].lower() or "us" == item['location_country'].lower() or "usa" == item['location_country'].lower():
+            if item['industry'] != None:
+                if "hospitality" in item['industry'].lower():
+                    location_street_address = ''
+                    if item['location_street_address'] != None:
+                        location_street_address = str(item['location_street_address']).replace("None",'')
+                    location_locality = ''
+                    if item['location_locality']:
+                        if len(location_street_address) == 0:
+                            location_locality = str(item['location_locality']).replace("None",'')
+                        else:
+                            location_locality = ', '+ str(item['location_locality']).replace("None",'')
+                    location_region = ''
+                    if item['location_region']:
+                        if len(location_locality) == 0 and len(location_locality) == 0:
+                            location_region = str(item['location_region']).replace("None",'')
+                        else:
+                            location_region = ", "+str(item['location_region']).replace("None",'')
+                    location_postal_code = ''
+                    if item['location_postal_code']:
+                        if str(len(location_street_address)) == 0 and len(location_locality) == 0 and len(location_locality)==0:
+                            location_postal_code =  str(item['location_postal_code']).replace("None",'')
+                        else:
+                            location_postal_code = ', '+ str(item['location_postal_code']).replace("None",'')
+                    full_address =   location_street_address + location_locality +location_region + location_postal_code
+                    full_name = str(item['full_name']).replace("None",'')
+                    phone_numbers = str(item['phone_numbers']).replace("None",'')
+                    phone_no = item['phone_numbers']
+                    if phone_no == str([]):
+                        continue
+                    all_phone_no = []
+                    for phone_number in phone_no:
+                        all_phone_no.append(phone_number)
+                    phone_numbers = ",".join(all_phone_no)
+                    mobile_phone = str(item['mobile_phone']).replace("None",'')
+                    emails = item['emails']
+                    if emails == str([]):
+                        continue
+                    personal_email2 = []
+                    professional_email2 = []
+                    for email in emails:
+                        if email['type'] == None or email['type'] == 'personal':
+                            personal_email1 = email['address']
+                            personal_email2.append(personal_email1)
+                        elif email['type'] == 'professional' or email['type'] == 'current_professional':
+                            professional_email1 = email['address']
+                            professional_email2.append(professional_email1)
+                    personal_email = ",".join(personal_email2)
+                    professional_email = ",".join(professional_email2)
+                    industry = str(item['industry']).replace("None",'')
+                    job_company_name = str(item['job_company_name']).replace("None",'')
+                    job_company_industry = str(item['job_company_industry']).replace("None",'')
+                    job_company_website = str(item['job_company_website']).replace("None",'')
+                    job_company_location_name = str(item['job_company_location_name']).replace("None",'')
+                    job_company_location_street_address = str(item['job_company_location_street_address']).replace("None",'')
+                    job_title = str(item['job_title']).replace("None",'')
+                    work_email = str(item['work_email']).replace("None",'')
+                    location_country = str(item['location_country']).replace("None",'')
+                    linkedin_url = str(item['linkedin_url']).replace("None",'')
+                    print(full_name)
+                    store =[full_name,phone_numbers,mobile_phone,personal_email,professional_email,industry,job_company_name,job_company_website,job_company_location_name,job_company_location_street_address,job_company_industry,job_title,work_email,location_country,full_address.strip(),linkedin_url]
+                    # store =[full_name,phone_numbers,mobile_phone,personal_email,professional_email,industry,job_company_name,job_title,work_email,location_country,full_address.strip(),linkedin_url]
+                    yield store
+def scrape():
+    data = fetch_data()
+    write_output(data)
+scrape()
